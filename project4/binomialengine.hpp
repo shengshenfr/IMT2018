@@ -35,6 +35,9 @@
 #include <ql/processes/blackscholesprocess.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
+#include <iostream>
+#include <iomanip>
+#include <ql/pricingengines/blackscholescalculator.hpp>
 
 namespace QuantLib {
 
@@ -67,6 +70,95 @@ namespace QuantLib {
         boost::shared_ptr<GeneralizedBlackScholesProcess> process_;
         Size timeSteps_;
     };
+    
+    
+    
+    
+	template <class T>
+	class BlackScholesLattice_2 : public TreeLattice1D<BlackScholesLattice_2<T>> {
+	public:
+	BlackScholesLattice_2(const boost::shared_ptr<T>& tree,
+										Rate riskFreeRate,
+										Rate dividendYield , 
+										Time end,
+										Size steps , 
+										Real volatility, 
+										Real strike)
+	: TreeLattice1D< BlackScholesLattice_2 <T> >(TimeGrid(end, steps), 2),
+	tree_(tree), riskFreeRate_(riskFreeRate), dt_(end/steps),
+		discount_(std::exp(-riskFreeRate*(dt_))) {
+		pd_ = tree->probability(0, 0, 0);
+		pu_ = tree->probability(0, 0, 1);
+		t_ = TimeGrid(end, steps) ; 
+		volatility_ = volatility ; 
+		strike_ =  strike   ; 
+		dividendYield_ =  dividendYield ; 
+		}
+		Size size(Size i) const { return tree_->size(i); }
+		DiscountFactor discount(Size,Size) const { return discount_; }
+		Real underlying(Size i, Size index) const {
+						 return tree_->underlying(i, index);}
+		Size descendant(Size i, Size index, Size branch) const {
+						 return tree_->descendant(i, index, branch);}
+		Real probability(Size i, Size index, Size branch) const {
+						 return tree_->probability(i, index, branch);}
+		void stepback(Size i, const Array& values, Array& newValues) const {
+			for (Size j=0; j<size(i); j++)
+			  newValues[j] = (pd_*values[j] + pu_*values[j+1])*discount_;
+				
+			}
+		void partialRollback(DiscretizedAsset & asset, Time to) const {
+			 //rollback one step  from the very End of the Lattice 
+			ajustAsset (asset) ;  
+			Integer iFrom = Integer(t_.index(asset.time())) ;
+			Integer iTo = Integer(t_.index(to));
+			for (Integer i=iFrom-1; i>=iTo; --i) {
+			   Array newValues(this->impl().size(i));
+			   this->impl().stepback(i, asset.values(), newValues);
+				// std::cout << "value of the asset " << asset.values() << std::endl;
+			   asset.time() =t_[i];
+			   asset.values() = newValues;
+			if (i != iTo) // skip the very last adjustment
+			asset.adjustValues();
+			   }
+		   }
+		void  ajustAsset (DiscretizedAsset & asset)  const {
+				
+			const  TimeGrid& grid = t_;
+			int i = 0;
+			Size lastTimeRef =  grid.size() ; 
+			std::cout << " asset time    "<< asset.time()   << " our grid  "  <<  t_[lastTimeRef -1 ]    <<  std::endl;
+			if (asset.time() > t_ [lastTimeRef -2 ] ) {
+				Array newValues(this->impl().size(Integer(lastTimeRef-2))); 
+				this->impl().stepback(Integer(lastTimeRef-2), asset.values(), newValues);
+				// std::cout << "value of the asset " << asset.values() << std::endl;
+				asset.time() = t_[lastTimeRef -2 ]; 
+				//change the value of the of the current data in the Lattice with the blackScholes formula  
+				Array coxRoxValues =  asset.values();
+				boost::shared_ptr <PlainVanillaPayoff> payOffCall(new  PlainVanillaPayoff (Option::Type::Call,strike_)); 
+				Real vol =  volatility_ *std::sqrt(t_[lastTimeRef -1 ] - t_[lastTimeRef -2 ]); 
+				DiscountFactor growth = std::exp(-(dividendYield_)*dt_);
+				for (i =0 ; i<coxRoxValues.size(); i++) {	  
+				   BlackScholesCalculator bsCalculator(payOffCall, underlying(lastTimeRef -2 , i), growth, vol, discount_) ; // use the Blackschole calculator
+				   coxRoxValues[i] = bsCalculator.value() ; 
+				   //2 - compute the new values of the with the blackScholes formula  (coxRoxValues(i) = bsformula (coxRoxValues(i) ))
+				}
+				asset.values() = coxRoxValues;     
+				//3 - asset.values() = coxRoxValues
+			}
+		}
+	protected:
+        boost::shared_ptr<T> tree_;
+        Rate riskFreeRate_;
+        Time dt_;
+        DiscountFactor discount_;
+        Real pd_, pu_;
+        TimeGrid t_; 
+        Real volatility_; 
+        Real strike_;  
+        Rate dividendYield_;    
+	};
+
 
 
     // template definitions
@@ -116,9 +208,7 @@ namespace QuantLib {
 
         boost::shared_ptr<T> tree(new T(bs, maturity, timeSteps_,
                                         payoff->strike()));
-
-        boost::shared_ptr<BlackScholesLattice<T> > lattice(
-            new BlackScholesLattice<T>(tree, r, maturity, timeSteps_));
+		boost::shared_ptr<BlackScholesLattice_2<T> > lattice(new BlackScholesLattice_2 <T> (tree, r, q, maturity, timeSteps_, v, payoff->strike()));
 
         DiscretizedVanillaOption option(arguments_, *process_, grid);
 
