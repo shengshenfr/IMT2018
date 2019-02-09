@@ -93,17 +93,16 @@ int main(int, char* []) {
         // options
         VanillaOption europeanOption(payoff, europeanExercise);
         std::ofstream data_result; 
-        data_result.open ("data.txt");
+        data_result.open ("dataBs.txt");
         int i;                 
 		int i_min = 801 ; 
 		int i_max = 1000 ; 	
 		//	method = "Binomial Cox-Ross-Rubinstein";
 		for ( i = i_min ; i<i_max +1  ; i++) {
 			  Size timeSteps (i) ;
-
-			  europeanOption.setPricingEngine(boost::shared_ptr<PricingEngine>(
-								  new BinomialVanillaEngine<CoxRossRubinstein>(bsmProcess,
-																			   timeSteps)));
+			  europeanOption.setPricingEngine(boost::shared_ptr< BinomialVanillaEngine_2<CoxRossRubinstein> >(new  BinomialVanillaEngine_2 <CoxRossRubinstein> ( bsmProcess, timeSteps) ));  
+			  //europeanOption.setPricingEngine(boost::shared_ptr<PricingEngine>(
+								  //new BinomialVanillaEngine<CoxRossRubinstein>(bsmProcess,timeSteps)));
 				   
 		      data_result << i <<" " << europeanOption.NPV() << "\n "  ; 
 		}
