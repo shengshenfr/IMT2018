@@ -65,8 +65,8 @@ int main(int, char* []) {
         std::cout << std::endl ;
 
         // write column headings
-        boost::shared_ptr<Exercise> europeanExercise(
-                                         new EuropeanExercise(maturity));
+        boost::shared_ptr<Exercise> americanExercise(
+                                         new AmericanExercise(maturity));
 
 
         Handle<Quote> underlyingH(boost::shared_ptr<Quote>(new SimpleQuote(underlying)));
@@ -91,7 +91,7 @@ int main(int, char* []) {
                                               flatTermStructure, flatVolTS));
 
         // options
-        VanillaOption europeanOption(payoff, europeanExercise);
+        VanillaOption americanOption(payoff, americanExercise);
         std::ofstream data_result; 
         data_result.open ("data.txt");
         int i;                 
@@ -100,12 +100,14 @@ int main(int, char* []) {
 		//	method = "Binomial Cox-Ross-Rubinstein";
 		for ( i = i_min ; i<i_max +1  ; i++) {
 			  Size timeSteps (i) ;
+			  americanOption.setPricingEngine(boost::shared_ptr<PricingEngine>(
+								new BinomialVanillaEngine<CoxRossRubinstein>(bsmProcess, timeSteps)));
+			  Real NPV1 = americanOption.NPV();
+			  americanOption.setPricingEngine(boost::shared_ptr<PricingEngine>(
+								new BinomialVanillaEngine_2<CoxRossRubinstein>(bsmProcess, timeSteps)));
+		      Real NPV2 = americanOption.NPV();
+			  data_result << i << " " << NPV1 << " " << NPV2 << "\n ";
 
-			  europeanOption.setPricingEngine(boost::shared_ptr<PricingEngine>(
-								  new BinomialVanillaEngine<CoxRossRubinstein>(bsmProcess,
-																			   timeSteps)));
-				   
-		      data_result << i <<" " << europeanOption.NPV() << "\n "  ; 
 		}
 		data_result.close() ; 
 

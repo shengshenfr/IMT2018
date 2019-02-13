@@ -70,8 +70,6 @@ namespace QuantLib {
         boost::shared_ptr<GeneralizedBlackScholesProcess> process_;
         Size timeSteps_;
     };
-    
-    
 
 
 
@@ -79,7 +77,7 @@ namespace QuantLib {
 
     template <class T>
     void BinomialVanillaEngine_2<T>::calculate() const {
-
+		
         DayCounter rfdc  = process_->riskFreeRate()->dayCounter();
         DayCounter divdc = process_->dividendYield()->dayCounter();
         DayCounter voldc = process_->blackVolatility()->dayCounter();
@@ -122,10 +120,12 @@ namespace QuantLib {
 
         boost::shared_ptr<T> tree(new T(bs, maturity, timeSteps_,
                                         payoff->strike()));
+        
+		
 		boost::shared_ptr<BlackScholesLattice<T> > lattice(new BlackScholesLattice <T> (tree, r, maturity, timeSteps_));
-
+		
         DiscretizedVanillaOption option(arguments_, *process_, grid);
-
+  
         option.initialize(lattice, maturity);
 
         option.rollback(grid[timeSteps_-1]);
@@ -134,26 +134,18 @@ namespace QuantLib {
         Time dt_ = maturity/timeSteps_;
         DiscountFactor discount_ = std::exp(-riskFreeRate_*(dt_));
         
-        TimeGrid t_ = TimeGrid(maturity, timeSteps_); 
         Real volatility_ = v; 
         Real strike_ = payoff->strike();  
         Rate dividendYield_ = q;    
-
-		
-		Size lastTimeRef =  t_.size() ; 
-
-	
-		boost::shared_ptr <PlainVanillaPayoff> payOffCall(new  PlainVanillaPayoff (Option::Type::Call,strike_)); 
+ 
 		Real vol =  volatility_ *std::sqrt(dt_); 
 		DiscountFactor growth = std::exp(-(dividendYield_)*dt_);
-		for (int i =0 ; i<lattice->size(timeSteps_ -1); i++) {	  
-		   BlackScholesCalculator bsCalculator(payOffCall, lattice->underlying(lastTimeRef -2 , i), growth, vol, discount_) ; 
+		for (int i =0 ; i<Integer(lattice->size(timeSteps_ -1)); i++) {	  
+		   BlackScholesCalculator bsCalculator(payoff->optionType(), strike_, lattice->underlying(timeSteps_ -1 , i), growth, vol, discount_) ; 
 		   option.values()[i] = bsCalculator.value() ; 
 
 		}
         option.adjustValues();
-		
-
 
         // Partial derivatives calculated from various points in the
         // binomial tree 
