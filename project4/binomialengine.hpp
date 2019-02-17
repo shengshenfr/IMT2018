@@ -120,32 +120,34 @@ namespace QuantLib {
 
         boost::shared_ptr<T> tree(new T(bs, maturity, timeSteps_,
                                         payoff->strike()));
-        
+
 		
 		boost::shared_ptr<BlackScholesLattice<T> > lattice(new BlackScholesLattice <T> (tree, r, maturity, timeSteps_));
 		
         DiscretizedVanillaOption option(arguments_, *process_, grid);
   
         option.initialize(lattice, maturity);
+        if (arguments_.exercise->type() == Exercise::American) {
+            option.rollback(grid[timeSteps_-1]);
 
-        option.rollback(grid[timeSteps_-1]);
+            Rate riskFreeRate_ = r;
+            Time dt_ = maturity/timeSteps_;
+            DiscountFactor discount_ = std::exp(-riskFreeRate_*(dt_));
+            
+            Real volatility_ = v; 
+            Real strike_ = payoff->strike();  
+            Rate dividendYield_ = q;    
+     
+            Real vol =  volatility_ *std::sqrt(dt_); 
+            DiscountFactor growth = std::exp(-(dividendYield_)*dt_);
+            for (int i =0 ; i<Integer(lattice->size(timeSteps_ -1)); i++) {   
+               BlackScholesCalculator bsCalculator(payoff->optionType(), strike_, lattice->underlying(timeSteps_ -1 , i), growth, vol, discount_) ; 
+               option.values()[i] = bsCalculator.value() ; 
 
-        Rate riskFreeRate_ = r;
-        Time dt_ = maturity/timeSteps_;
-        DiscountFactor discount_ = std::exp(-riskFreeRate_*(dt_));
-        
-        Real volatility_ = v; 
-        Real strike_ = payoff->strike();  
-        Rate dividendYield_ = q;    
- 
-		Real vol =  volatility_ *std::sqrt(dt_); 
-		DiscountFactor growth = std::exp(-(dividendYield_)*dt_);
-		for (int i =0 ; i<Integer(lattice->size(timeSteps_ -1)); i++) {	  
-		   BlackScholesCalculator bsCalculator(payoff->optionType(), strike_, lattice->underlying(timeSteps_ -1 , i), growth, vol, discount_) ; 
-		   option.values()[i] = bsCalculator.value() ; 
+            }
+            option.adjustValues();   
+        }
 
-		}
-        option.adjustValues();
 
         // Partial derivatives calculated from various points in the
         // binomial tree 
