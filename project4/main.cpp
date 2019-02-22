@@ -93,11 +93,12 @@ int main(int, char* []) {
         // options
         VanillaOption americanOption(payoff, americanExercise);
         std::ofstream data_result; 
-        data_result.open ("data.txt");
+        
         int i;                 
 		int i_min = 801 ; 
 		int i_max = 1000 ; 	
 		//	method = "Binomial Cox-Ross-Rubinstein";
+		data_result.open ("data.txt");
 		for ( i = i_min ; i<i_max +1  ; i++) {
 			  Size timeSteps (i) ;
 			  americanOption.setPricingEngine(boost::shared_ptr<PricingEngine>(
@@ -109,8 +110,64 @@ int main(int, char* []) {
 			  data_result << i << " " << NPV1 << " " << NPV2 << "\n ";
 
 		}
-		data_result.close() ; 
+		data_result.close(); 
+		// Binomial method: Jarrow-Rudd
+		data_result.open ("dataJr.txt");
+		for ( i = i_min ; i<i_max +1  ; i++) {
+			  Size timeSteps (i) ;
+			  americanOption.setPricingEngine(boost::shared_ptr<PricingEngine>(
+								new BinomialVanillaEngine<JarrowRudd>(bsmProcess, timeSteps)));
+			  Real NPV1 = americanOption.NPV();
+			  americanOption.setPricingEngine(boost::shared_ptr<PricingEngine>(
+								new BinomialVanillaEngine_2<JarrowRudd>(bsmProcess, timeSteps)));
+		      Real NPV2 = americanOption.NPV();
+			  data_result << i << " " << NPV1 << " " << NPV2 << "\n ";
 
+		}
+		data_result.close();
+		// Binomial method: Additive equiprobabilities
+		data_result.open ("dataAe.txt");
+		for ( i = i_min ; i<i_max +1  ; i++) {
+			  Size timeSteps (i) ;
+			  americanOption.setPricingEngine(boost::shared_ptr<PricingEngine>(
+								new BinomialVanillaEngine<AdditiveEQPBinomialTree>(bsmProcess, timeSteps)));
+			  Real NPV1 = americanOption.NPV();
+			  americanOption.setPricingEngine(boost::shared_ptr<PricingEngine>(
+								new BinomialVanillaEngine_2<AdditiveEQPBinomialTree>(bsmProcess, timeSteps)));
+		      Real NPV2 = americanOption.NPV();
+			  data_result << i << " " << NPV1 << " " << NPV2 << "\n ";
+
+		}
+		data_result.close();
+		// Binomial method: Binomial Trigeorgis
+		data_result.open ("dataBt.txt");
+		for ( i = i_min ; i<i_max +1  ; i++) {
+			  Size timeSteps (i) ;
+			  americanOption.setPricingEngine(boost::shared_ptr<PricingEngine>(
+								new BinomialVanillaEngine<Trigeorgis>(bsmProcess, timeSteps)));
+			  Real NPV1 = americanOption.NPV();
+			  americanOption.setPricingEngine(boost::shared_ptr<PricingEngine>(
+								new BinomialVanillaEngine_2<Trigeorgis>(bsmProcess, timeSteps)));
+		      Real NPV2 = americanOption.NPV();
+			  data_result << i << " " << NPV1 << " " << NPV2 << "\n ";
+
+		}
+		data_result.close();
+		// Binomial method: Binomial Tian
+		data_result.open ("dataTian.txt");
+		for ( i = i_min ; i<i_max +1  ; i++) {
+			  Size timeSteps (i) ;
+			  americanOption.setPricingEngine(boost::shared_ptr<PricingEngine>(
+								new BinomialVanillaEngine<Tian>(bsmProcess, timeSteps)));
+			  Real NPV1 = americanOption.NPV();
+			  americanOption.setPricingEngine(boost::shared_ptr<PricingEngine>(
+								new BinomialVanillaEngine_2<Tian>(bsmProcess, timeSteps)));
+		      Real NPV2 = americanOption.NPV();
+			  data_result << i << " " << NPV1 << " " << NPV2 << "\n ";
+
+		}
+		data_result.close();
+		
 		double seconds = timer.elapsed();
         Integer hours = int(seconds/3600);
         seconds -= hours * 3600;
